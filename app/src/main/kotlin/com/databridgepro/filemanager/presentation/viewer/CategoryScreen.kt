@@ -27,7 +27,7 @@ import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.VideoFile
-import androidx.compose.material.icons.filled.ViewList
+import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -42,6 +42,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -56,10 +57,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.databridgepro.filemanager.data.model.FileItem
-import com.databridgepro.filemanager.data.repository.StorageRepository
 import com.databridgepro.filemanager.util.PermissionUtils
 import java.io.File
 import java.text.SimpleDateFormat
@@ -72,23 +73,13 @@ fun CategoryScreen(
     type: String,
     onBack: () -> Unit = {},
     onOpenViewer: (FileItem) -> Unit = {},
-    storageRepository: StorageRepository? = null
+    viewModel: CategoryViewModel = hiltViewModel()
 ) {
-    var files by remember { mutableStateOf<List<FileItem>>(emptyList()) }
-    var isLoading by remember { mutableStateOf(true) }
+    val uiState by viewModel.uiState.collectAsState()
     var isGrid by remember { mutableStateOf(type == "image") }
 
-    val repo = storageRepository ?: run {
-        val ctx = LocalContext.current
-        remember { StorageRepository(ctx) }
-    }
-
     LaunchedEffect(type) {
-        repo.searchByType(type)
-            .collect { result ->
-                files = result
-                isLoading = false
-            }
+        viewModel.loadCategory(type)
     }
 
     val title = when (type) {
@@ -99,6 +90,12 @@ fun CategoryScreen(
         "apk" -> "APK Files"
         else -> "Files"
     }
+
+    val files = when (val state = uiState) {
+        is CategoryUiState.Success -> state.files
+        else -> emptyList()
+    }
+    val isLoading = uiState is CategoryUiState.Loading
 
     Scaffold(
         topBar = {
@@ -112,7 +109,7 @@ fun CategoryScreen(
                 actions = {
                     IconButton(onClick = { isGrid = !isGrid }) {
                         Icon(
-                            if (isGrid) Icons.Default.ViewList else Icons.Default.GridView,
+                            if (isGrid) Icons.AutoMirrored.Filled.ViewList else Icons.Default.GridView,
                             contentDescription = "Toggle view"
                         )
                     }

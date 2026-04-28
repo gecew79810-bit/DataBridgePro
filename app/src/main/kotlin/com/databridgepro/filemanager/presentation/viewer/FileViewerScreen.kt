@@ -358,20 +358,22 @@ private fun TextViewer(file: File) {
 
     LaunchedEffect(file) {
         try {
-            content = if (file.length() > 2 * 1024 * 1024) {
-                file.bufferedReader().use { reader ->
-                    val sb = StringBuilder()
-                    var line: String?
-                    var count = 0
-                    while (reader.readLine().also { line = it } != null && count < 5000) {
-                        sb.appendLine(line)
-                        count++
+            content = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                if (file.length() > 2 * 1024 * 1024) {
+                    file.bufferedReader().use { reader ->
+                        val sb = StringBuilder()
+                        var line: String?
+                        var count = 0
+                        while (reader.readLine().also { line = it } != null && count < 5000) {
+                            sb.appendLine(line)
+                            count++
+                        }
+                        if (count >= 5000) sb.appendLine("\n... (truncated, file too large)")
+                        sb.toString()
                     }
-                    if (count >= 5000) sb.appendLine("\n... (truncated, file too large)")
-                    sb.toString()
+                } else {
+                    file.readText()
                 }
-            } else {
-                file.readText()
             }
         } catch (e: Exception) {
             content = "Error reading file: ${e.message}"

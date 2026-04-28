@@ -11,7 +11,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class SettingsState(
-    val theme: String = "system",
+    val theme: String = "dark",
     val dynamicColor: Boolean = true,
     val biometricLock: Boolean = false,
     val autoBackup: Boolean = false,

@@ -22,7 +22,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            val themeMode by settingsRepository.theme.collectAsState(initial = "system")
+            val themeMode by settingsRepository.theme.collectAsState(initial = "dark")
             val dynamicColor by settingsRepository.dynamicColor.collectAsState(initial = true)
 
             DataBridgeProTheme(

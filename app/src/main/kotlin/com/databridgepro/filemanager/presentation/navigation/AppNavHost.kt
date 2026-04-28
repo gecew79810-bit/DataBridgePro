@@ -155,7 +155,7 @@ fun AppNavHost() {
                     onNavigateToBackup = { navController.navigate(Screen.Backup.route) },
                     onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
                     onNavigateToFolder = { path, name ->
-                        navController.navigate("files_folder/${java.net.URLEncoder.encode(path, "UTF-8")}/${java.net.URLEncoder.encode(name, "UTF-8")}")
+                        navController.navigate("files_folder/${android.net.Uri.encode(path)}/${android.net.Uri.encode(name)}")
                     },
                     onNavigateToCategory = { type ->
                         navController.navigate("category/$type")
@@ -170,7 +170,7 @@ fun AppNavHost() {
                             file.isApk -> "apk"
                             else -> "other"
                         }
-                        navController.navigate("viewer/${java.net.URLEncoder.encode(file.path, "UTF-8")}/${java.net.URLEncoder.encode(file.name, "UTF-8")}/$type")
+                        navController.navigate("viewer/${android.net.Uri.encode(file.path)}/${android.net.Uri.encode(file.name)}/$type")
                     }
                 )
             }
@@ -186,7 +186,7 @@ fun AppNavHost() {
                             file.isApk -> "apk"
                             else -> "other"
                         }
-                        navController.navigate("viewer/${java.net.URLEncoder.encode(file.path, "UTF-8")}/${java.net.URLEncoder.encode(file.name, "UTF-8")}/$type")
+                        navController.navigate("viewer/${android.net.Uri.encode(file.path)}/${android.net.Uri.encode(file.name)}/$type")
                     }
                 )
             }
@@ -197,8 +197,8 @@ fun AppNavHost() {
                     navArgument("name") { type = NavType.StringType }
                 )
             ) { backStack ->
-                val path = java.net.URLDecoder.decode(backStack.arguments?.getString("path") ?: "", "UTF-8")
-                val name = java.net.URLDecoder.decode(backStack.arguments?.getString("name") ?: "", "UTF-8")
+                val path = backStack.arguments?.getString("path") ?: ""
+                val name = backStack.arguments?.getString("name") ?: ""
                 FolderFilesScreen(
                     initialPath = path,
                     folderName = name,
@@ -213,7 +213,7 @@ fun AppNavHost() {
                             file.isApk -> "apk"
                             else -> "other"
                         }
-                        navController.navigate("viewer/${java.net.URLEncoder.encode(file.path, "UTF-8")}/${java.net.URLEncoder.encode(file.name, "UTF-8")}/$type")
+                        navController.navigate("viewer/${android.net.Uri.encode(file.path)}/${android.net.Uri.encode(file.name)}/$type")
                     }
                 )
             }
@@ -226,8 +226,8 @@ fun AppNavHost() {
                 )
             ) { backStack ->
                 FileViewerScreen(
-                    filePath = java.net.URLDecoder.decode(backStack.arguments?.getString("path") ?: "", "UTF-8"),
-                    fileName = java.net.URLDecoder.decode(backStack.arguments?.getString("name") ?: "", "UTF-8"),
+                    filePath = backStack.arguments?.getString("path") ?: "",
+                    fileName = backStack.arguments?.getString("name") ?: "",
                     fileType = backStack.arguments?.getString("type") ?: "other",
                     onBack = { navController.popBackStack() }
                 )
@@ -249,7 +249,7 @@ fun AppNavHost() {
                             file.isApk -> "apk"
                             else -> "other"
                         }
-                        navController.navigate("viewer/${java.net.URLEncoder.encode(file.path, "UTF-8")}/${java.net.URLEncoder.encode(file.name, "UTF-8")}/$fileType")
+                        navController.navigate("viewer/${android.net.Uri.encode(file.path)}/${android.net.Uri.encode(file.name)}/$fileType")
                     }
                 )
             }
