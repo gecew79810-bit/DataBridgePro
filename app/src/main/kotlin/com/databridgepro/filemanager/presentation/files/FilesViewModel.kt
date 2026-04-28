@@ -1,30 +1,24 @@
 package com.databridgepro.filemanager.presentation.files
 
 import android.app.Application
+import android.content.Intent
 import android.net.Uri
-import androidx.documentfile.provider.DocumentFile
+import androidx.core.content.FileProvider
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.databridgepro.filemanager.data.model.FileItem
-import com.databridgepro.filemanager.data.repository.FileRepository
-import com.databridgepro.filemanager.data.repository.SettingsRepository
-import com.databridgepro.filemanager.util.PermissionUtils
+import com.databridgepro.filemanager.data.repository.StorageRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.FlowPreview
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.debounce
-import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import java.io.File
 import javax.inject.Inject
 
 enum class SortMode { NAME, SIZE, DATE, TYPE }
+enum class ViewMode { LIST, GRID }
 
 sealed class FilesUiState {
     data object Loading : FilesUiState()
@@ -35,21 +29,20 @@ sealed class FilesUiState {
 @HiltViewModel
 class FilesViewModel @Inject constructor(
     private val application: Application,
-    private val fileRepository: FileRepository,
-    private val settingsRepository: SettingsRepository
+    private val storageRepository: StorageRepository
 ) : AndroidViewModel(application) {
 
     private val _uiState = MutableStateFlow<FilesUiState>(FilesUiState.Loading)
     val uiState: StateFlow<FilesUiState> = _uiState.asStateFlow()
 
-    private val _currentPath = MutableStateFlow(PermissionUtils.getAndroidDataTreeUri())
-    val currentPath: StateFlow<Uri> = _currentPath.asStateFlow()
+    private val _currentPath = MutableStateFlow(storageRepository.getRootPath())
+    val currentPath: StateFlow<String> = _currentPath.asStateFlow()
 
-    private val _pathStack = MutableStateFlow<List<Pair<String, Uri>>>(emptyList())
-    val pathStack: StateFlow<List<Pair<String, Uri>>> = _pathStack.asStateFlow()
+    private val _pathStack = MutableStateFlow<List<Pair<String, String>>>(emptyList())
+    val pathStack: StateFlow<List<Pair<String, String>>> = _pathStack.asStateFlow()
 
-    private val _selectedFiles = MutableStateFlow<Set<Uri>>(emptySet())
-    val selectedFiles: StateFlow<Set<Uri>> = _selectedFiles.asStateFlow()
+    private val _selectedFiles = MutableStateFlow<Set<String>>(emptySet())
+    val selectedFiles: StateFlow<Set<String>> = _selectedFiles.asStateFlow()
 
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
@@ -60,46 +53,28 @@ class FilesViewModel @Inject constructor(
     private val _sortMode = MutableStateFlow(SortMode.NAME)
     val sortMode: StateFlow<SortMode> = _sortMode.asStateFlow()
 
-    private val _operationProgress = MutableStateFlow<Int?>(null)
-    val operationProgress: StateFlow<Int?> = _operationProgress.asStateFlow()
+    private val _viewMode = MutableStateFlow(ViewMode.LIST)
+    val viewMode: StateFlow<ViewMode> = _viewMode.asStateFlow()
 
-    private val _snackbarMessage = MutableSharedFlow<String>()
+    private val _clipboardCount = MutableStateFlow(0)
+    val clipboardCount: StateFlow<Int> = _clipboardCount.asStateFlow()
 
-    private var clipboardFiles: List<Uri> = emptyList()
+    private var clipboardPaths: List<String> = emptyList()
     private var clipboardOperation: ClipboardOp = ClipboardOp.NONE
 
     enum class ClipboardOp { NONE, COPY, MOVE }
 
     init {
-        viewModelScope.launch {
-            settingsRepository.safUri.collect { uriStr ->
-                if (uriStr.isNotEmpty()) {
-                    val uri = Uri.parse(uriStr)
-                    _currentPath.value = uri
-                    _pathStack.value = listOf("Android/data" to uri)
-                    loadFiles()
-                }
-            }
-        }
-    }
-
-    @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
-    private fun setupSearch() {
-        _searchQuery
-            .debounce(300)
-            .flatMapLatest { query ->
-                if (query.isBlank()) fileRepository.getFiles(_currentPath.value)
-                else fileRepository.searchFiles(_currentPath.value, query)
-            }
-            .catch { _uiState.value = FilesUiState.Error(it.message ?: "Search failed") }
-            .onEach { files -> _uiState.value = FilesUiState.Success(sortFiles(files)) }
-            .launchIn(viewModelScope)
+        val root = storageRepository.getRootPath()
+        _pathStack.value = listOf("Internal Storage" to root)
+        _currentPath.value = root
+        loadFiles()
     }
 
     fun loadFiles() {
         viewModelScope.launch {
             _uiState.value = FilesUiState.Loading
-            fileRepository.getFiles(_currentPath.value)
+            storageRepository.listFiles(_currentPath.value)
                 .catch { _uiState.value = FilesUiState.Error(it.message ?: "Failed to load files") }
                 .collect { files ->
                     _uiState.value = FilesUiState.Success(sortFiles(files))
@@ -107,14 +82,18 @@ class FilesViewModel @Inject constructor(
         }
     }
 
-    fun navigateToFolder(fileItem: FileItem) {
-        if (!fileItem.isDirectory) return
+    fun navigateToPath(path: String, name: String) {
         val stack = _pathStack.value.toMutableList()
-        stack.add(fileItem.name to fileItem.uri)
+        stack.add(name to path)
         _pathStack.value = stack
-        _currentPath.value = fileItem.uri
+        _currentPath.value = path
         _selectedFiles.value = emptySet()
         loadFiles()
+    }
+
+    fun navigateToFolder(fileItem: FileItem) {
+        if (!fileItem.isDirectory) return
+        navigateToPath(fileItem.path, fileItem.name)
     }
 
     fun navigateBack(): Boolean {
@@ -138,10 +117,17 @@ class FilesViewModel @Inject constructor(
         loadFiles()
     }
 
-    fun toggleSelection(uri: Uri) {
+    fun toggleSelection(path: String) {
         val current = _selectedFiles.value.toMutableSet()
-        if (current.contains(uri)) current.remove(uri) else current.add(uri)
+        if (current.contains(path)) current.remove(path) else current.add(path)
         _selectedFiles.value = current
+    }
+
+    fun selectAll() {
+        val state = _uiState.value
+        if (state is FilesUiState.Success) {
+            _selectedFiles.value = state.files.map { it.path }.toSet()
+        }
     }
 
     fun clearSelection() {
@@ -155,7 +141,7 @@ class FilesViewModel @Inject constructor(
         } else {
             viewModelScope.launch {
                 _uiState.value = FilesUiState.Loading
-                fileRepository.searchFiles(_currentPath.value, query)
+                storageRepository.searchFiles(_currentPath.value, query)
                     .catch { _uiState.value = FilesUiState.Error(it.message ?: "Search failed") }
                     .collect { files -> _uiState.value = FilesUiState.Success(sortFiles(files)) }
             }
@@ -178,63 +164,121 @@ class FilesViewModel @Inject constructor(
         }
     }
 
+    fun toggleViewMode() {
+        _viewMode.value = if (_viewMode.value == ViewMode.LIST) ViewMode.GRID else ViewMode.LIST
+    }
+
     fun deleteSelectedFiles() {
         viewModelScope.launch {
-            val uris = _selectedFiles.value.toList()
-            uris.forEach { uri ->
-                val doc = DocumentFile.fromSingleUri(application, uri)
-                if (doc != null) {
-                    fileRepository.deleteFile(doc)
-                }
+            val paths = _selectedFiles.value.toList()
+            paths.forEach { path ->
+                storageRepository.deleteFile(File(path))
             }
             _selectedFiles.value = emptySet()
             loadFiles()
         }
     }
 
+    fun deleteFile(path: String) {
+        viewModelScope.launch {
+            storageRepository.deleteFile(File(path))
+            loadFiles()
+        }
+    }
+
     fun copySelectedToClipboard() {
-        clipboardFiles = _selectedFiles.value.toList()
+        clipboardPaths = _selectedFiles.value.toList()
         clipboardOperation = ClipboardOp.COPY
+        _clipboardCount.value = clipboardPaths.size
         _selectedFiles.value = emptySet()
     }
 
     fun moveSelectedToClipboard() {
-        clipboardFiles = _selectedFiles.value.toList()
+        clipboardPaths = _selectedFiles.value.toList()
         clipboardOperation = ClipboardOp.MOVE
+        _clipboardCount.value = clipboardPaths.size
         _selectedFiles.value = emptySet()
     }
 
     fun paste() {
-        if (clipboardFiles.isEmpty() || clipboardOperation == ClipboardOp.NONE) return
+        if (clipboardPaths.isEmpty() || clipboardOperation == ClipboardOp.NONE) return
         viewModelScope.launch {
-            val destDoc = DocumentFile.fromTreeUri(application, _currentPath.value) ?: return@launch
-            clipboardFiles.forEach { uri ->
-                val sourceDoc = DocumentFile.fromSingleUri(application, uri) ?: return@forEach
+            val destDir = File(_currentPath.value)
+            clipboardPaths.forEach { path ->
+                val source = File(path)
                 when (clipboardOperation) {
-                    ClipboardOp.COPY -> fileRepository.copyFile(sourceDoc, destDoc)
-                    ClipboardOp.MOVE -> fileRepository.moveFile(sourceDoc, destDoc)
+                    ClipboardOp.COPY -> storageRepository.copyFile(source, destDir)
+                    ClipboardOp.MOVE -> storageRepository.moveFile(source, destDir)
                     ClipboardOp.NONE -> {}
                 }
             }
-            clipboardFiles = emptyList()
+            clipboardPaths = emptyList()
             clipboardOperation = ClipboardOp.NONE
+            _clipboardCount.value = 0
             loadFiles()
         }
     }
 
     fun createFolder(name: String) {
         viewModelScope.launch {
-            fileRepository.createFolder(_currentPath.value, name)
+            storageRepository.createFolder(_currentPath.value, name)
             loadFiles()
         }
     }
 
-    fun renameFile(uri: Uri, newName: String) {
+    fun renameFile(path: String, newName: String) {
         viewModelScope.launch {
-            val doc = DocumentFile.fromSingleUri(application, uri) ?: return@launch
-            fileRepository.renameFile(doc, newName)
+            storageRepository.renameFile(File(path), newName)
             loadFiles()
         }
+    }
+
+    fun shareFile(fileItem: FileItem) {
+        try {
+            val file = File(fileItem.path)
+            val uri = FileProvider.getUriForFile(
+                application, "${application.packageName}.provider", file
+            )
+            val intent = Intent(Intent.ACTION_SEND).apply {
+                type = fileItem.mimeType ?: "*/*"
+                putExtra(Intent.EXTRA_STREAM, uri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            application.startActivity(Intent.createChooser(intent, "Share ${fileItem.name}").apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            })
+        } catch (_: Exception) { }
+    }
+
+    fun openFile(fileItem: FileItem) {
+        try {
+            val file = File(fileItem.path)
+            val uri = FileProvider.getUriForFile(
+                application, "${application.packageName}.provider", file
+            )
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(uri, fileItem.mimeType ?: "*/*")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            application.startActivity(intent)
+        } catch (_: Exception) { }
+    }
+
+    fun installApk(fileItem: FileItem) {
+        try {
+            val file = File(fileItem.path)
+            val uri = FileProvider.getUriForFile(
+                application, "${application.packageName}.provider", file
+            )
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(uri, "application/vnd.android.package-archive")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            application.startActivity(intent)
+        } catch (_: Exception) { }
     }
 
     private fun sortFiles(files: List<FileItem>): List<FileItem> {
@@ -245,7 +289,7 @@ class FilesViewModel @Inject constructor(
             SortMode.NAME -> nonDirs.sortedBy { it.name.lowercase() }
             SortMode.SIZE -> nonDirs.sortedByDescending { it.size }
             SortMode.DATE -> nonDirs.sortedByDescending { it.lastModified }
-            SortMode.TYPE -> nonDirs.sortedBy { it.mimeType ?: "" }
+            SortMode.TYPE -> nonDirs.sortedBy { it.extension }
         }
         return sortedDirs + sortedFiles
     }

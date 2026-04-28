@@ -30,15 +30,19 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.databridgepro.filemanager.presentation.backup.BackupScreen
 import com.databridgepro.filemanager.presentation.files.FilesScreen
 import com.databridgepro.filemanager.presentation.home.HomeScreen
 import com.databridgepro.filemanager.presentation.permission.PermissionScreen
 import com.databridgepro.filemanager.presentation.settings.SettingsScreen
+import com.databridgepro.filemanager.presentation.viewer.FileViewerScreen
+import com.databridgepro.filemanager.presentation.viewer.CategoryScreen
 
 sealed class Screen(
     val route: String,
@@ -60,7 +64,10 @@ fun AppNavHost() {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
-    val showBottomBar = currentDestination?.route != Screen.Permission.route
+    val currentRoute = currentDestination?.route ?: ""
+    val showBottomBar = currentRoute != Screen.Permission.route &&
+        !currentRoute.startsWith("viewer/") &&
+        !currentRoute.startsWith("category/")
 
     Scaffold(
         bottomBar = {
@@ -146,11 +153,105 @@ fun AppNavHost() {
                 HomeScreen(
                     onNavigateToFiles = { navController.navigate(Screen.Files.route) },
                     onNavigateToBackup = { navController.navigate(Screen.Backup.route) },
-                    onNavigateToSettings = { navController.navigate(Screen.Settings.route) }
+                    onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
+                    onNavigateToFolder = { path, name ->
+                        navController.navigate("files_folder/${java.net.URLEncoder.encode(path, "UTF-8")}/${java.net.URLEncoder.encode(name, "UTF-8")}")
+                    },
+                    onNavigateToCategory = { type ->
+                        navController.navigate("category/$type")
+                    },
+                    onOpenFile = { file ->
+                        val type = when {
+                            file.isImage -> "image"
+                            file.isVideo -> "video"
+                            file.isAudio -> "audio"
+                            file.isPdf -> "pdf"
+                            file.isText -> "text"
+                            file.isApk -> "apk"
+                            else -> "other"
+                        }
+                        navController.navigate("viewer/${java.net.URLEncoder.encode(file.path, "UTF-8")}/${java.net.URLEncoder.encode(file.name, "UTF-8")}/$type")
+                    }
                 )
             }
             composable(Screen.Files.route) {
-                FilesScreen()
+                FilesScreen(
+                    onOpenViewer = { file ->
+                        val type = when {
+                            file.isImage -> "image"
+                            file.isVideo -> "video"
+                            file.isAudio -> "audio"
+                            file.isPdf -> "pdf"
+                            file.isText -> "text"
+                            file.isApk -> "apk"
+                            else -> "other"
+                        }
+                        navController.navigate("viewer/${java.net.URLEncoder.encode(file.path, "UTF-8")}/${java.net.URLEncoder.encode(file.name, "UTF-8")}/$type")
+                    }
+                )
+            }
+            composable(
+                "files_folder/{path}/{name}",
+                arguments = listOf(
+                    navArgument("path") { type = NavType.StringType },
+                    navArgument("name") { type = NavType.StringType }
+                )
+            ) { backStack ->
+                val path = java.net.URLDecoder.decode(backStack.arguments?.getString("path") ?: "", "UTF-8")
+                val name = java.net.URLDecoder.decode(backStack.arguments?.getString("name") ?: "", "UTF-8")
+                FolderFilesScreen(
+                    initialPath = path,
+                    folderName = name,
+                    onBack = { navController.popBackStack() },
+                    onOpenViewer = { file ->
+                        val type = when {
+                            file.isImage -> "image"
+                            file.isVideo -> "video"
+                            file.isAudio -> "audio"
+                            file.isPdf -> "pdf"
+                            file.isText -> "text"
+                            file.isApk -> "apk"
+                            else -> "other"
+                        }
+                        navController.navigate("viewer/${java.net.URLEncoder.encode(file.path, "UTF-8")}/${java.net.URLEncoder.encode(file.name, "UTF-8")}/$type")
+                    }
+                )
+            }
+            composable(
+                "viewer/{path}/{name}/{type}",
+                arguments = listOf(
+                    navArgument("path") { type = NavType.StringType },
+                    navArgument("name") { type = NavType.StringType },
+                    navArgument("type") { type = NavType.StringType }
+                )
+            ) { backStack ->
+                FileViewerScreen(
+                    filePath = java.net.URLDecoder.decode(backStack.arguments?.getString("path") ?: "", "UTF-8"),
+                    fileName = java.net.URLDecoder.decode(backStack.arguments?.getString("name") ?: "", "UTF-8"),
+                    fileType = backStack.arguments?.getString("type") ?: "other",
+                    onBack = { navController.popBackStack() }
+                )
+            }
+            composable(
+                "category/{type}",
+                arguments = listOf(navArgument("type") { type = NavType.StringType })
+            ) { backStack ->
+                CategoryScreen(
+                    type = backStack.arguments?.getString("type") ?: "image",
+                    onBack = { navController.popBackStack() },
+                    onOpenViewer = { file ->
+                        val fileType = when {
+                            file.isImage -> "image"
+                            file.isVideo -> "video"
+                            file.isAudio -> "audio"
+                            file.isPdf -> "pdf"
+                            file.isText -> "text"
+                            file.isApk -> "apk"
+                            else -> "other"
+                        }
+                        navController.navigate("viewer/${java.net.URLEncoder.encode(file.path, "UTF-8")}/${java.net.URLEncoder.encode(file.name, "UTF-8")}/$fileType")
+                    }
+                )
             }
             composable(Screen.Backup.route) {
                 BackupScreen()
@@ -160,6 +261,20 @@ fun AppNavHost() {
             }
         }
     }
+}
+
+@Composable
+fun FolderFilesScreen(
+    initialPath: String,
+    folderName: String,
+    onBack: () -> Unit,
+    onOpenViewer: (com.databridgepro.filemanager.data.model.FileItem) -> Unit
+) {
+    val viewModel: com.databridgepro.filemanager.presentation.files.FilesViewModel = androidx.hilt.navigation.compose.hiltViewModel()
+    androidx.compose.runtime.LaunchedEffect(initialPath) {
+        viewModel.navigateToPath(initialPath, folderName)
+    }
+    FilesScreen(viewModel = viewModel, onOpenViewer = onOpenViewer)
 }
 
 @Preview(showBackground = true)

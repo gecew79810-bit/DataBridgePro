@@ -29,7 +29,7 @@ class SettingsRepository @Inject constructor(
         val SAF_URI_KEY = stringPreferencesKey("saf_uri")
     }
 
-    val theme: Flow<String> = context.dataStore.data.map { it[THEME_KEY] ?: "system" }
+    val theme: Flow<String> = context.dataStore.data.map { it[THEME_KEY] ?: "dark" }
     val dynamicColor: Flow<Boolean> = context.dataStore.data.map { it[DYNAMIC_COLOR_KEY] ?: true }
     val biometricLock: Flow<Boolean> = context.dataStore.data.map { it[BIOMETRIC_KEY] ?: false }
     val autoBackup: Flow<Boolean> = context.dataStore.data.map { it[AUTO_BACKUP_KEY] ?: false }

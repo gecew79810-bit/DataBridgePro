@@ -338,7 +338,7 @@ private fun PermissionStep(
                     )
                 ) {
                     Icon(
-                        if (isEnabled) Icons.Default.Lock else Icons.Default.Lock,
+                        if (isEnabled) Icons.Default.Shield else Icons.Default.Lock,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp)
                     )
