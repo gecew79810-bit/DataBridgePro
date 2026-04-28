@@ -31,13 +31,15 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.DriveFileMove
+import androidx.compose.material.icons.automirrored.filled.DriveFileMove
+import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
+import androidx.compose.material.icons.automirrored.filled.TextSnippet
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Image
-import androidx.compose.material.icons.filled.InsertDriveFile
+
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.TextSnippet
+
 import androidx.compose.material.icons.filled.VideoFile
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -375,9 +377,9 @@ private fun getFileIcon(file: FileItem) = when {
     file.mimeType?.startsWith("image/") == true -> Icons.Default.Image
     file.mimeType?.startsWith("video/") == true -> Icons.Default.VideoFile
     file.mimeType?.startsWith("audio/") == true -> Icons.Default.AudioFile
-    file.mimeType?.startsWith("text/") == true -> Icons.Default.TextSnippet
+    file.mimeType?.startsWith("text/") == true -> Icons.AutoMirrored.Filled.TextSnippet
     file.mimeType?.contains("pdf") == true -> Icons.Default.PictureAsPdf
-    else -> Icons.Default.InsertDriveFile
+    else -> Icons.AutoMirrored.Filled.InsertDriveFile
 }
 
 @Composable
@@ -407,7 +409,7 @@ private fun BatchActionBar(
                 Icon(Icons.Default.ContentCopy, contentDescription = "Copy")
             }
             IconButton(onClick = onMove) {
-                Icon(Icons.Default.DriveFileMove, contentDescription = "Move")
+                Icon(Icons.AutoMirrored.Filled.DriveFileMove, contentDescription = "Move")
             }
             IconButton(onClick = onDelete) {
                 Icon(

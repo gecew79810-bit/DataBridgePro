@@ -125,7 +125,7 @@ class BackupViewModel @Inject constructor(
                     val zipFile = destDoc.createFile(
                         "application/zip",
                         "${app.packageName}_${System.currentTimeMillis()}.zip"
-                    ) ?: continue
+                    ) ?: return@forEachIndexed
 
                     ZipUtils.zipFolder(application, sourceUri, zipFile.uri) { progress ->
                         _backupProgress.value = _backupProgress.value.copy(
