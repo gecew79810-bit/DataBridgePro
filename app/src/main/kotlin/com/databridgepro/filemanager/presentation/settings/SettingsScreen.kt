@@ -10,29 +10,40 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Brightness6
+import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.ColorLens
+import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.SettingsBrightness
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -40,6 +51,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -57,7 +69,18 @@ fun SettingsScreen(
     var showScheduleDialog by remember { mutableStateOf(false) }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        LargeTopAppBar(title = { Text("Settings") })
+        LargeTopAppBar(
+            title = {
+                Text(
+                    "Settings",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            colors = TopAppBarDefaults.largeTopAppBarColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            )
+        )
 
         when (val state = uiState) {
             is SettingsUiState.Loading -> {
@@ -78,21 +101,30 @@ fun SettingsScreen(
                         .fillMaxSize()
                         .verticalScroll(rememberScrollState())
                         .padding(horizontal = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     SettingsGroupTitle("Appearance")
 
                     SettingsClickItem(
                         icon = Icons.Default.Brightness6,
                         title = "Theme",
-                        subtitle = settings.theme.replaceFirstChar { it.uppercase() },
+                        subtitle = when (settings.theme) {
+                            "dark" -> "Dark"
+                            "light" -> "Light"
+                            else -> "System Default"
+                        },
+                        trailingIcon = when (settings.theme) {
+                            "dark" -> Icons.Default.DarkMode
+                            "light" -> Icons.Default.LightMode
+                            else -> Icons.Default.SettingsBrightness
+                        },
                         onClick = { showThemeDialog = true }
                     )
 
                     SettingsSwitchItem(
-                        icon = Icons.Default.ColorLens,
-                        title = "Dynamic Colors",
-                        subtitle = "Use Material You colors from wallpaper",
+                        icon = Icons.Default.Palette,
+                        title = "Material You",
+                        subtitle = "Dynamic colors from your wallpaper",
                         checked = settings.dynamicColor,
                         onCheckedChange = { viewModel.setDynamicColor(it) }
                     )
@@ -102,7 +134,7 @@ fun SettingsScreen(
                     SettingsSwitchItem(
                         icon = Icons.Default.Fingerprint,
                         title = "Biometric Lock",
-                        subtitle = "Require biometric authentication to open app",
+                        subtitle = "Require fingerprint to open app",
                         checked = settings.biometricLock,
                         onCheckedChange = { viewModel.setBiometricLock(it) }
                     )
@@ -146,8 +178,15 @@ fun SettingsScreen(
 
                     SettingsClickItem(
                         icon = Icons.Default.Info,
-                        title = "Version",
-                        subtitle = "1.0.0",
+                        title = "DataBridge Pro",
+                        subtitle = "Version 1.0.0",
+                        onClick = { }
+                    )
+
+                    SettingsClickItem(
+                        icon = Icons.Default.Code,
+                        title = "Open Source",
+                        subtitle = "Built with Jetpack Compose & Material 3",
                         onClick = { }
                     )
 
@@ -190,10 +229,10 @@ fun SettingsScreen(
 private fun SettingsGroupTitle(title: String) {
     Text(
         text = title,
-        style = MaterialTheme.typography.titleSmall,
+        style = MaterialTheme.typography.labelLarge,
         fontWeight = FontWeight.Bold,
         color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(top = 16.dp, bottom = 4.dp)
+        modifier = Modifier.padding(top = 20.dp, bottom = 6.dp, start = 4.dp)
     )
 }
 
@@ -202,29 +241,57 @@ private fun SettingsClickItem(
     icon: ImageVector,
     title: String,
     subtitle: String,
+    trailingIcon: ImageVector? = null,
     onClick: () -> Unit
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .clip(RoundedCornerShape(16.dp))
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.5.dp)
     ) {
         Row(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                icon,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary
-            )
-            Spacer(modifier = Modifier.width(16.dp))
+            Surface(
+                shape = RoundedCornerShape(10.dp),
+                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f),
+                modifier = Modifier.size(40.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        icon,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.width(14.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+                Text(
+                    title,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Medium
+                )
                 Text(
                     subtitle,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            if (trailingIcon != null) {
+                Icon(
+                    trailingIcon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp)
                 )
             }
         }
@@ -239,26 +306,56 @@ private fun SettingsSwitchItem(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.5.dp)
+    ) {
         Row(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                icon,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary
-            )
-            Spacer(modifier = Modifier.width(16.dp))
+            Surface(
+                shape = RoundedCornerShape(10.dp),
+                color = if (checked)
+                    MaterialTheme.colorScheme.primaryContainer
+                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                modifier = Modifier.size(40.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        icon,
+                        contentDescription = null,
+                        tint = if (checked) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.width(14.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+                Text(
+                    title,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Medium
+                )
                 Text(
                     subtitle,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            Switch(checked = checked, onCheckedChange = onCheckedChange)
+            Switch(
+                checked = checked,
+                onCheckedChange = onCheckedChange,
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = MaterialTheme.colorScheme.primary,
+                    checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
+                )
+            )
         }
     }
 }
@@ -269,27 +366,53 @@ private fun ThemeDialog(
     onDismiss: () -> Unit,
     onSelect: (String) -> Unit
 ) {
-    val themes = listOf("system" to "System Default", "light" to "Light", "dark" to "Dark")
+    val themes = listOf(
+        Triple("system", "System Default", Icons.Default.SettingsBrightness),
+        Triple("light", "Light", Icons.Default.LightMode),
+        Triple("dark", "Dark", Icons.Default.DarkMode)
+    )
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Select Theme") },
+        title = { Text("Select Theme", fontWeight = FontWeight.Bold) },
+        shape = RoundedCornerShape(24.dp),
         text = {
-            Column {
-                themes.forEach { (value, label) ->
-                    Row(
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                themes.forEach { (value, label, icon) ->
+                    Surface(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { onSelect(value) }
-                            .padding(vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable { onSelect(value) },
+                        shape = RoundedCornerShape(12.dp),
+                        color = if (currentTheme == value)
+                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                        else MaterialTheme.colorScheme.surface
                     ) {
-                        RadioButton(
-                            selected = currentTheme == value,
-                            onClick = { onSelect(value) }
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(label)
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = currentTheme == value,
+                                onClick = { onSelect(value) }
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Icon(
+                                icon,
+                                contentDescription = null,
+                                tint = if (currentTheme == value)
+                                    MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                label,
+                                fontWeight = if (currentTheme == value)
+                                    FontWeight.SemiBold else FontWeight.Normal
+                            )
+                        }
                     }
                 }
             }
@@ -308,23 +431,36 @@ private fun ScheduleDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Backup Schedule") },
+        title = { Text("Backup Schedule", fontWeight = FontWeight.Bold) },
+        shape = RoundedCornerShape(24.dp),
         text = {
-            Column {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 schedules.forEach { (value, label) ->
-                    Row(
+                    Surface(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { onSelect(value) }
-                            .padding(vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable { onSelect(value) },
+                        shape = RoundedCornerShape(12.dp),
+                        color = if (currentSchedule == value)
+                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                        else MaterialTheme.colorScheme.surface
                     ) {
-                        RadioButton(
-                            selected = currentSchedule == value,
-                            onClick = { onSelect(value) }
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(label)
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = currentSchedule == value,
+                                onClick = { onSelect(value) }
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                label,
+                                fontWeight = if (currentSchedule == value)
+                                    FontWeight.SemiBold else FontWeight.Normal
+                            )
+                        }
                     }
                 }
             }

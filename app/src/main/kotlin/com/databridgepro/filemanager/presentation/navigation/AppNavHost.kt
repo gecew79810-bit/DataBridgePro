@@ -2,22 +2,32 @@ package com.databridgepro.filemanager.presentation.navigation
 
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.outlined.Backup
+import androidx.compose.material.icons.outlined.Folder
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -30,12 +40,17 @@ import com.databridgepro.filemanager.presentation.home.HomeScreen
 import com.databridgepro.filemanager.presentation.permission.PermissionScreen
 import com.databridgepro.filemanager.presentation.settings.SettingsScreen
 
-sealed class Screen(val route: String, val title: String, val icon: ImageVector) {
-    data object Home : Screen("home", "Home", Icons.Default.Home)
-    data object Files : Screen("files", "Files", Icons.Default.Folder)
-    data object Backup : Screen("backup", "Backup", Icons.Default.Backup)
-    data object Settings : Screen("settings", "Settings", Icons.Default.Settings)
-    data object Permission : Screen("permission", "Permission", Icons.Default.Settings)
+sealed class Screen(
+    val route: String,
+    val title: String,
+    val selectedIcon: ImageVector,
+    val unselectedIcon: ImageVector
+) {
+    data object Home : Screen("home", "Home", Icons.Filled.Home, Icons.Outlined.Home)
+    data object Files : Screen("files", "Files", Icons.Filled.Folder, Icons.Outlined.Folder)
+    data object Backup : Screen("backup", "Backup", Icons.Filled.Backup, Icons.Outlined.Backup)
+    data object Settings : Screen("settings", "Settings", Icons.Filled.Settings, Icons.Outlined.Settings)
+    data object Permission : Screen("permission", "Permission", Icons.Filled.Settings, Icons.Outlined.Settings)
 }
 
 private val bottomNavItems = listOf(Screen.Home, Screen.Files, Screen.Backup, Screen.Settings)
@@ -50,12 +65,34 @@ fun AppNavHost() {
     Scaffold(
         bottomBar = {
             if (showBottomBar) {
-                NavigationBar {
+                NavigationBar(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    tonalElevation = 0.dp
+                ) {
                     bottomNavItems.forEach { screen ->
+                        val selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true
                         NavigationBarItem(
-                            icon = { Icon(screen.icon, contentDescription = screen.title) },
-                            label = { Text(screen.title) },
-                            selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true,
+                            icon = {
+                                Icon(
+                                    if (selected) screen.selectedIcon else screen.unselectedIcon,
+                                    contentDescription = screen.title
+                                )
+                            },
+                            label = {
+                                Text(
+                                    screen.title,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
+                                )
+                            },
+                            selected = selected,
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = MaterialTheme.colorScheme.primary,
+                                selectedTextColor = MaterialTheme.colorScheme.primary,
+                                indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+                            ),
                             onClick = {
                                 navController.navigate(screen.route) {
                                     popUpTo(navController.graph.findStartDestination().id) {
@@ -76,16 +113,24 @@ fun AppNavHost() {
             startDestination = Screen.Permission.route,
             modifier = Modifier.padding(innerPadding),
             enterTransition = {
-                slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Start, tween(300))
+                fadeIn(tween(300)) + slideIntoContainer(
+                    AnimatedContentTransitionScope.SlideDirection.Start, tween(300)
+                )
             },
             exitTransition = {
-                slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Start, tween(300))
+                fadeOut(tween(200)) + slideOutOfContainer(
+                    AnimatedContentTransitionScope.SlideDirection.Start, tween(300)
+                )
             },
             popEnterTransition = {
-                slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.End, tween(300))
+                fadeIn(tween(300)) + slideIntoContainer(
+                    AnimatedContentTransitionScope.SlideDirection.End, tween(300)
+                )
             },
             popExitTransition = {
-                slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.End, tween(300))
+                fadeOut(tween(200)) + slideOutOfContainer(
+                    AnimatedContentTransitionScope.SlideDirection.End, tween(300)
+                )
             }
         ) {
             composable(Screen.Permission.route) {
