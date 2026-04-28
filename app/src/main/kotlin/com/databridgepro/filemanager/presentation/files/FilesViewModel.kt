@@ -9,6 +9,7 @@ import androidx.lifecycle.viewModelScope
 import com.databridgepro.filemanager.data.model.FileItem
 import com.databridgepro.filemanager.data.repository.StorageRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -61,6 +62,7 @@ class FilesViewModel @Inject constructor(
 
     private var clipboardPaths: List<String> = emptyList()
     private var clipboardOperation: ClipboardOp = ClipboardOp.NONE
+    private var loadJob: Job? = null
 
     enum class ClipboardOp { NONE, COPY, MOVE }
 
@@ -72,7 +74,8 @@ class FilesViewModel @Inject constructor(
     }
 
     fun loadFiles() {
-        viewModelScope.launch {
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch {
             _uiState.value = FilesUiState.Loading
             storageRepository.listFiles(_currentPath.value)
                 .catch { _uiState.value = FilesUiState.Error(it.message ?: "Failed to load files") }

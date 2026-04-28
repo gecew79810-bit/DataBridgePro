@@ -49,11 +49,19 @@ class HomeViewModel @Inject constructor(
                 backupRepository.getRecentBackups(10)
                     .catch { _uiState.value = HomeUiState.Error(it.message ?: "Unknown error") }
                     .collect { backups ->
-                        _uiState.value = HomeUiState.Success(
-                            storageInfo = storageInfo,
-                            recentBackups = backups
-                        )
-                        loadRecentFiles()
+                        val current = _uiState.value
+                        if (current is HomeUiState.Success) {
+                            _uiState.value = current.copy(
+                                storageInfo = storageInfo,
+                                recentBackups = backups
+                            )
+                        } else {
+                            _uiState.value = HomeUiState.Success(
+                                storageInfo = storageInfo,
+                                recentBackups = backups
+                            )
+                            loadRecentFiles()
+                        }
                     }
             } catch (e: Exception) {
                 _uiState.value = HomeUiState.Error(e.message ?: "Failed to load storage info")
