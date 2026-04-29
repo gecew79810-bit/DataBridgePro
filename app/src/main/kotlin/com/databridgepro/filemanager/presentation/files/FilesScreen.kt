@@ -98,7 +98,8 @@ import java.util.Locale
 @Composable
 fun FilesScreen(
     viewModel: FilesViewModel = hiltViewModel(),
-    onOpenViewer: (FileItem) -> Unit = {}
+    onOpenViewer: (FileItem) -> Unit = {},
+    onExitScreen: (() -> Unit)? = null
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val pathStack by viewModel.pathStack.collectAsStateWithLifecycle()
@@ -114,8 +115,10 @@ fun FilesScreen(
     var showRenameDialog by remember { mutableStateOf<FileItem?>(null) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
 
-    BackHandler(enabled = pathStack.size > 1) {
-        viewModel.navigateBack()
+    BackHandler(enabled = pathStack.size > 1 || onExitScreen != null) {
+        if (!viewModel.navigateBack()) {
+            onExitScreen?.invoke()
+        }
     }
 
     Scaffold(

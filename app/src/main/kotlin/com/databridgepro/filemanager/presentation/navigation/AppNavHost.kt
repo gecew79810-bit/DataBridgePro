@@ -272,9 +272,9 @@ fun FolderFilesScreen(
 ) {
     val viewModel: com.databridgepro.filemanager.presentation.files.FilesViewModel = androidx.hilt.navigation.compose.hiltViewModel()
     androidx.compose.runtime.LaunchedEffect(initialPath) {
-        viewModel.navigateToPath(initialPath, folderName)
+        viewModel.initializeAtPath(initialPath, folderName)
     }
-    FilesScreen(viewModel = viewModel, onOpenViewer = onOpenViewer)
+    FilesScreen(viewModel = viewModel, onOpenViewer = onOpenViewer, onExitScreen = onBack)
 }
 
 @Preview(showBackground = true)

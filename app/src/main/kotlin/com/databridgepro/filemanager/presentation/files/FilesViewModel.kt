@@ -10,6 +10,7 @@ import com.databridgepro.filemanager.data.model.FileItem
 import com.databridgepro.filemanager.data.repository.StorageRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -63,6 +64,7 @@ class FilesViewModel @Inject constructor(
     private var clipboardPaths: List<String> = emptyList()
     private var clipboardOperation: ClipboardOp = ClipboardOp.NONE
     private var loadJob: Job? = null
+    private var searchJob: Job? = null
 
     enum class ClipboardOp { NONE, COPY, MOVE }
 
@@ -83,6 +85,13 @@ class FilesViewModel @Inject constructor(
                     _uiState.value = FilesUiState.Success(sortFiles(files))
                 }
         }
+    }
+
+    fun initializeAtPath(path: String, name: String) {
+        _pathStack.value = listOf(name to path)
+        _currentPath.value = path
+        _selectedFiles.value = emptySet()
+        loadFiles()
     }
 
     fun navigateToPath(path: String, name: String) {
@@ -139,10 +148,12 @@ class FilesViewModel @Inject constructor(
 
     fun setSearchQuery(query: String) {
         _searchQuery.value = query
+        searchJob?.cancel()
         if (query.isBlank()) {
             loadFiles()
         } else {
-            viewModelScope.launch {
+            searchJob = viewModelScope.launch {
+                delay(300)
                 _uiState.value = FilesUiState.Loading
                 storageRepository.searchFiles(_currentPath.value, query)
                     .catch { _uiState.value = FilesUiState.Error(it.message ?: "Search failed") }
