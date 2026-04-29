@@ -12,6 +12,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -37,13 +38,15 @@ class HomeViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow<HomeUiState>(HomeUiState.Loading)
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
+    private var loadDataJob: Job? = null
 
     init {
         loadData()
     }
 
     fun loadData() {
-        viewModelScope.launch {
+        loadDataJob?.cancel()
+        loadDataJob = viewModelScope.launch {
             try {
                 val storageInfo = storageRepository.getStorageInfo()
                 backupRepository.getRecentBackups(10)

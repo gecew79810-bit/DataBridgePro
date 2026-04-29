@@ -11,8 +11,11 @@ import com.databridgepro.filemanager.data.repository.StorageRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
@@ -214,21 +217,34 @@ class FilesViewModel @Inject constructor(
         _selectedFiles.value = emptySet()
     }
 
+    private val _userMessage = MutableSharedFlow<String>()
+    val userMessage: SharedFlow<String> = _userMessage.asSharedFlow()
+
     fun paste() {
         if (clipboardPaths.isEmpty() || clipboardOperation == ClipboardOp.NONE) return
         viewModelScope.launch {
             val destDir = File(_currentPath.value)
+            val failedPaths = mutableListOf<String>()
             clipboardPaths.forEach { path ->
                 val source = File(path)
-                when (clipboardOperation) {
+                val result = when (clipboardOperation) {
                     ClipboardOp.COPY -> storageRepository.copyFile(source, destDir)
                     ClipboardOp.MOVE -> storageRepository.moveFile(source, destDir)
-                    ClipboardOp.NONE -> {}
+                    ClipboardOp.NONE -> return@forEach
+                }
+                if (result.isFailure) {
+                    failedPaths.add(path)
                 }
             }
-            clipboardPaths = emptyList()
-            clipboardOperation = ClipboardOp.NONE
-            _clipboardCount.value = 0
+            if (failedPaths.isEmpty()) {
+                clipboardPaths = emptyList()
+                clipboardOperation = ClipboardOp.NONE
+                _clipboardCount.value = 0
+            } else {
+                clipboardPaths = failedPaths
+                _clipboardCount.value = failedPaths.size
+                _userMessage.emit("${failedPaths.size} file(s) failed to ${clipboardOperation.name.lowercase()}")
+            }
             loadFiles()
         }
     }

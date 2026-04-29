@@ -3,6 +3,8 @@ package com.databridgepro.filemanager.presentation.home
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -378,7 +380,11 @@ private fun DuplicateGroupCard(files: List<FileItem>, onClick: (FileItem) -> Uni
                 Text(
                     file.name, style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(vertical = 2.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(4.dp))
+                        .clickable { onClick(file) }
+                        .padding(vertical = 4.dp, horizontal = 4.dp)
                 )
             }
             if (files.size > 3) {
