@@ -203,7 +203,8 @@ class StorageRepository @Inject constructor(
     suspend fun moveFile(source: File, destDir: File): Result<File> = withContext(Dispatchers.IO) {
         runCatching {
             val result = copyFile(source, destDir).getOrThrow()
-            if (source.isDirectory) source.deleteRecursively() else source.delete()
+            val deleted = if (source.isDirectory) source.deleteRecursively() else source.delete()
+            if (!deleted) throw IOException("Failed to delete source: ${source.name}")
             result
         }
     }

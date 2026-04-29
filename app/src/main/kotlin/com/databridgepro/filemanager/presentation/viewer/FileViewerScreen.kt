@@ -283,12 +283,17 @@ private fun AudioViewer(file: File, fileName: String) {
                     if (mediaPlayer == null) {
                         mediaPlayer = android.media.MediaPlayer().apply {
                             setDataSource(file.absolutePath)
-                            prepare()
+                            setOnPreparedListener { mp ->
+                                mp.start()
+                                isPlaying = true
+                            }
                             setOnCompletionListener { isPlaying = false }
+                            prepareAsync()
                         }
+                    } else {
+                        mediaPlayer?.start()
+                        isPlaying = true
                     }
-                    mediaPlayer?.start()
-                    isPlaying = true
                 }
             },
             shape = RoundedCornerShape(16.dp),
